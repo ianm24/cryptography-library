@@ -1,4 +1,5 @@
 import math
+import random
 
 DATA_FILEPATH = "./input/"
 LATIN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -214,35 +215,158 @@ def playfair_cipher(plaintext, key, encrypt=True, combined_letters=['I','J'], fi
         
     return ciphertext
 
-# def vigenere_cipher
+def vigenere_cipher(plaintext, key, encrypt=True, alphabet=LATIN_ALPHABET):
+    """Takes in plaintext and a key (word) and returns ciphertext for the
+    vigenere cipher."""
 
-# =============================Cryptographic Functions End=====================
-
-# WIP
-def caesar_cipher_codebreak(ciphertext, alphabet=LATIN_ALPHABET):
-    """Takes in ciphertext and returns plaintext and key for the caesar cipher 
-    using a given alphabet."""
-
-    plaintext = ""
+    ciphertext = ""
+    shift_multiplier = 1
+    
+    #Verify key and plaintext uses letters in alphabet
+    if not check_text_in_alphabet(key, alphabet) or not check_text_in_alphabet(plaintext, alphabet):
+        print("Key and plaintext must use letters in the given alphabet.")
+        return ciphertext
+    
+    if not encrypt:
+        shift_multiplier = -1
 
     # Clean input
-    ciphertext = ciphertext.upper()
+    plaintext = plaintext.upper()
 
-    # Go through all possible keys for the alphabet and find which is correct
-    possible_plaintexts = {}
-    for curr_key in range(len(alphabet)):
-        curr_plaintext = ""
-        for j in range(len(ciphertext)):
-            letter = ciphertext[j]
-            if letter in LATIN_IGNORED_CHARACTERS:
-                curr_plaintext += letter
-                continue
-            new_letter_idx = (alphabet.find(letter)-curr_key) % len(alphabet)
-            curr_plaintext += alphabet[new_letter_idx]
-        legibility_score = 0 # TODO find a way to measure if text forms english words
-        possible_plaintexts[curr_key] = [curr_plaintext]
+    # Perform cipher
+    for i in range(len(plaintext)):
+        key_idx = i%len(key)
+        key_letter = key[key_idx]
+        key_alphabet_idx = alphabet.find(key_letter)
         
-    return plaintext
+        plaintext_alphabet_idx = alphabet.find(plaintext[i])
+        
+        ciphertext_alphabet_idx = (plaintext_alphabet_idx + shift_multiplier*key_alphabet_idx) % len(alphabet)
+        ciphertext += alphabet[ciphertext_alphabet_idx]
+    
+    return ciphertext
+
+def autokey_cipher(plaintext, key, encrypt=True, alphabet=LATIN_ALPHABET):
+    """Takes in plaintext and a key (word) and returns ciphertext for the
+    autokey cipher."""
+
+    ciphertext = ""
+    shift_multiplier = 1
+    
+    #Verify key and plaintext uses letters in alphabet
+    if not check_text_in_alphabet(key, alphabet) or not check_text_in_alphabet(plaintext, alphabet):
+        print("Key and plaintext must use letters in the given alphabet.")
+        return ciphertext
+    
+    if not encrypt:
+        shift_multiplier = -1
+
+    # Clean input
+    plaintext = plaintext.upper()
+
+    # Perform cipher
+    for i in range(len(plaintext)):
+        key_letter = ""
+        if i < len(key) or not encrypt:
+            key_letter = key[i]
+        else:
+            key_letter = plaintext[i-len(key)]
+        
+        key_alphabet_idx = alphabet.find(key_letter)
+        
+        plaintext_alphabet_idx = alphabet.find(plaintext[i])
+        
+        ciphertext_alphabet_idx = (plaintext_alphabet_idx + shift_multiplier*key_alphabet_idx) % len(alphabet)
+        ciphertext += alphabet[ciphertext_alphabet_idx]
+
+        if not encrypt:
+            key += alphabet[ciphertext_alphabet_idx]
+    
+    return ciphertext
+
+def generate_psuedorandom_onetimepad_key(length, alphabet=LATIN_ALPHABET):
+    """Generates a psuedorandom key of a certain length to be used for the
+    one-time pad cipher"""
+
+    key = ""
+    for i in range(length):
+        key += alphabet[random.randint(0,len(alphabet)-1)]
+    
+    return key
+        
+def onetimepad_cipher(plaintext, key, encrypt=True, alphabet=LATIN_ALPHABET):
+    """Takes in plaintext and a key (truly random sequence of letters >= in
+    length to plaintext) and returns ciphertext for the one-time pad cipher."""
+
+    ciphertext = ""
+
+    #Verify key and plaintext uses letters in alphabet
+    if len(key) < len(plaintext):
+        print("Key must be at least as long as plaintext.")
+        return ciphertext
+    
+    # One-time pad is just a special case of the vigenere cipher
+    ciphertext = vigenere_cipher(plaintext, key, encrypt, alphabet)
+
+    return ciphertext
+
+def railfence_cipher(plaintext, key, encrypt=True, alphabet=LATIN_ALPHABET):
+    """Takes in plaintext and a key (integer between 2 and len(plaintext)-1
+    indicating number of rails) and returns ciphertext for the railfence cipher
+    using a given alphabet."""
+
+    ciphertext = ""
+    ptr = None
+    if not encrypt:
+        ciphertext = ["" for i in range(len(plaintext))]
+        ptr = 0
+
+    #Verify 2 <= key < len(alphabet)
+    if key >= len(alphabet) or key < 2 or key != math.ceil(key):
+        print("Key must be an integer between 2 and the length of the plaintext minus one.")
+        return ciphertext
+    
+    #Verify plaintext uses letters in alphabet
+    if not check_text_in_alphabet(plaintext, alphabet):
+        print("Plaintext must use letters in the given alphabet.")
+        return ciphertext
+
+    # Clean input
+    plaintext = plaintext.upper()
+
+    # Perform cipher
+    for i in range(key):
+        # First gap is "2(k-i-1)-1" until i=k-1, then its "2(k-1)-1"
+        steps = []
+        if i==key-1:
+            steps.append(2*(key-1))
+        else:
+            steps.append(2*(key-i-1))
+        
+        # Second gap is "2(k-1)-1" for i=0 then its "2(i-1)+1"
+        if i==0:
+            steps.append(2*(key-1))
+        else:
+            steps.append(2*(i-1)+2)
+
+        j=0
+        idx=i
+        while idx < len(plaintext):
+            if encrypt:
+                ciphertext += plaintext[idx]
+            else:
+                ciphertext[idx] = plaintext[ptr]
+                ptr += 1
+
+            idx += steps[j%2]
+            j += 1
+    
+    if not encrypt:
+        ciphertext = "".join(ciphertext)
+    return ciphertext
+    
+
+# =============================Cryptographic Functions End=====================
 
 def main():
     """Imports data then gets and prints the solution."""
@@ -256,6 +380,18 @@ def main():
 
     playfair_key = "WORDSTHATARECOOL"
     encrypt_decrypt_symmetric(plaintext,playfair_key,playfair_cipher)
+
+    vignere_key = "FUNANDEXCITING"
+    encrypt_decrypt_symmetric(plaintext,vignere_key,vigenere_cipher)
+
+    autokey_key = "SENTENCES"
+    encrypt_decrypt_symmetric(plaintext,autokey_key,autokey_cipher)
+
+    onetimepad_key = generate_psuedorandom_onetimepad_key(len(plaintext))
+    encrypt_decrypt_symmetric(plaintext,onetimepad_key,onetimepad_cipher)
+
+    railfence_key = 3
+    encrypt_decrypt_symmetric(plaintext,railfence_key,railfence_cipher)
 
 
 if __name__ == "__main__":
